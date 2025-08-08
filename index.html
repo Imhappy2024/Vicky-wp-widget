@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voice Chat Widget</title>
+  <meta name="viewport" content="width=320,initial-scale=1" />
+  <script src="https://unpkg.com/retell-client-js-sdk"></script>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: transparent;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      height: 100vh;
+      min-height: 300px;
+    }
+    #voice-widget-container {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      z-index: 9999;
+      background: none;
+    }
+    .voice-widget-main {
+      display: flex;
+      align-items: center;
+      background: #fff;
+      border-radius: 30px;
+      box-shadow: 0 3px 24px rgba(0,0,0,0.10);
+      padding: 6px 16px 6px 6px;
+      min-width: 230px;
+      min-height: 54px;
+    }
+    .voice-logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg,#fff 50%,#c7c7c7 100%);
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2.5px solid #f5f5f5;
+      box-shadow: 0 0 6px rgba(0,0,0,0.02);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .voice-logo:after {
+      content: '';
+      display: block;
+      width: 22px; height: 22px;
+      background: url('data:image/svg+xml;utf8,<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22"><path d="M11 1.5V20.5" stroke="%23BFBFBF" stroke-width="2" stroke-linecap="round"/><path d="M20.5 11H1.5" stroke="%23BFBFBF" stroke-width="2" stroke-linecap="round"/></svg>') center/cover no-repeat;
+      margin: auto;
+    }
+    .voice-widget-btn {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 18px;
+      border: none;
+      border-radius: 22px;
+      padding: 8px 22px;
+      margin: 0 8px 0 0;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.18s;
+      min-width: 128px;
+      justify-content: center;
+    }
+    .voice-widget-btn[disabled] {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .voice-widget-btn.connecting {
+      background: #969696;
+      color: #fff;
+      cursor: wait;
+    }
+    .voice-widget-btn svg {
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @media (max-width: 480px) {
+      #voice-widget-container { bottom: 12px; right: 12px; }
+      .voice-widget-main { min-width: 180px; padding-right: 6px;}
+      .voice-widget-btn { min-width: 80px; font-size: 16px; }
+      .voice-logo { width: 32px; height: 32px;}
+    }
+  </style>
+</head>
+<body>
+  <div id="voice-widget-container">
+    <div class="voice-widget-main">
+      <span class="voice-logo"></span>
+      <button id="voice-btn" class="voice-widget-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M3 13.5V16a1 1 0 001 1h2.5a.5.5 0 00.5-.5v-2a.5.5 0 00-.5-.5H3zm9.75-3.25v.5a4.75 4.75 0 01-9.5 0v-.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <ellipse cx="9.5" cy="6.5" rx="4.5" ry="4.5" fill="white"/>
+        </svg>
+        VOICE CHAT
+      </button>
+    </div>
+  </div>
+  <script>
+    // CHANGE THIS to your deployed backend!
+    const BACKEND_URL = "https://scaling-guacamole-pj7wg77w646rf6v59-3001.app.github.dev/create-web-call";
+    const voiceBtn = document.getElementById('voice-btn');
+    let callActive = false, connecting = false;
+    let retellWebClient = null;
+
+    function setBtn(state) {
+      if (state === "idle") {
+        voiceBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13.5V16a1 1 0 001 1h2.5a.5.5 0 00.5-.5v-2a.5.5 0 00-.5-.5H3zm9.75-3.25v.5a4.75 4.75 0 01-9.5 0v-.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/><ellipse cx="9.5" cy="6.5" rx="4.5" ry="4.5" fill="white"/></svg>VOICE CHAT`;
+        voiceBtn.className = "voice-widget-btn";
+        voiceBtn.disabled = false;
+      } else if (state === "connecting") {
+        voiceBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 3l14 14M17 3L3 17" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>CONNECTING...`;
+        voiceBtn.className = "voice-widget-btn connecting";
+        voiceBtn.disabled = true;
+      } else if (state === "active") {
+        voiceBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 3l14 14M17 3L3 17" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>END CALL`;
+        voiceBtn.className = "voice-widget-btn";
+        voiceBtn.disabled = false;
+      }
+    }
+
+    setBtn("idle");
+
+    voiceBtn.onclick = async () => {
+      if (callActive) {
+        if (retellWebClient) retellWebClient.stopCall();
+        return;
+      }
+      setBtn("connecting");
+      try {
+        const resp = await fetch(BACKEND_URL, { method: "POST" });
+        const { access_token } = await resp.json();
+        retellWebClient = new window.RetellWebClient();
+        retellWebClient.on("call_started", () => {
+          setBtn("active");
+          callActive = true;
+        });
+        retellWebClient.on("call_ended", () => {
+          setBtn("idle");
+          callActive = false;
+        });
+        retellWebClient.on("error", () => {
+          setBtn("idle");
+          callActive = false;
+        });
+        await retellWebClient.startCall({ accessToken: access_token });
+      } catch (e) {
+        setBtn("idle");
+        alert("Could not start voice chat. Please try again.");
+      }
+    };
+  </script>
+</body>
+</html>
