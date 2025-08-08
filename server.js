@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -6,8 +5,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const API_KEY = "sk-key_16636d19c2dc034ab42d190655d4";    // Your Retell API Key
-const AGENT_ID = "agent_8e3ee5fa5f3ee9e20ea6cbcccf";    // Your Agent ID
+// Use Railway's environment variables for security (set these in Railway "Variables" tab)
+const API_KEY = process.env.API_KEY || "sk-key_16636d19c2dc034ab42d190655d4";
+const AGENT_ID = process.env.AGENT_ID || "agent_8e3ee5fa5f3ee9e20ea6cbcccf";
 
 app.post("/create-web-call", async (req, res) => {
   try {
@@ -22,6 +22,8 @@ app.post("/create-web-call", async (req, res) => {
   }
 });
 
-app.listen(3001, () => {
-  console.log("Server running at http://localhost:3001");
+// Use process.env.PORT and listen on all interfaces (0.0.0.0)
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running at http://0.0.0.0:${PORT}`);
 });
