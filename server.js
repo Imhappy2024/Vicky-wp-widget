@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -18,11 +19,13 @@ app.post("/create-web-call", async (req, res) => {
     );
     res.json(response.data);
   } catch (err) {
-    res.status(500).json({ error: "Failed to create web call" });
+    // Print the real error to the Railway logs for debugging
+    console.error("Error from Retell:", err.response?.data || err.message || err);
+    res.status(500).json({ error: err.response?.data || err.message || "Failed to create web call" });
   }
 });
 
-// Use process.env.PORT and listen on all interfaces (0.0.0.0)
+// Use process.env.PORT and listen on all interfaces (0.0.0.0) for Railway
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running at http://0.0.0.0:${PORT}`);
